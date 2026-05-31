@@ -1,0 +1,16 @@
+# basic
+__pycache__
+
+# runtime
+output
+info
+*backup*
+_clips
+results
+
+# llava
+LLaVA_NeXT
+*test*
+
+# amlt
+*.yaml
