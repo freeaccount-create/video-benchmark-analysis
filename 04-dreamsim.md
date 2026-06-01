@@ -70,5 +70,54 @@ twoafc_acc = mean(score)     # 越高越对齐人类
 
 **参数说明**：①三骨干均 ViT-B/16，输入 224×224，各自取 cls/embedding 后拼接；②距离用 `1−cos` 而非欧氏，范围 ~[0,2]；③评测集 NIGHTS（人类 2AFC 三元组 ref/left/right，≥6 票一致）；④集成模型 test 2AFC ≈ 96.2%。
 
+## 7. 如何用 DreamSim 评测「别的模型」
+
+DreamSim **不是"出题→模型答→判分"那种 benchmark**，它就是一个函数：输入两张图 → 输出感知距离(0~2，越小越像)。所以"测别的模型"是把它当**指标(一把尺子)**塞进你自己的流程，而不是去跑它的某个测试集。
+
+### 关键澄清：用它当指标**不需要任何人工标注**
+
+人工的 2AFC 判断只出现在两个阶段，且都不是"你用它测模型"的阶段：
+
+| 阶段 | 用人工标注吗 | 在干嘛 |
+|------|------------|--------|
+| ① 训练 DreamSim（作者已完成） | ✅ | 用人类 2AFC 标签微调 LoRA，把"人眼觉得像"**烧进权重** |
+| ② 评测 DreamSim 自己（`eval_percep`） | ✅ | 算 2AFC 准确率，看这把尺子准不准 |
+| ③ **你拿它去测别的模型** | ❌ **不用** | 纯函数 `d=model(img1,img2)`，给两张图吐一个数 |
+
+> 同 LPIPS/FID：训练时吃过人类/标签数据，**部署当指标时是零标注的确定性函数**。
+
+### 最小调用
+```python
+from dreamsim import dreamsim
+from PIL import Image
+model, preprocess = dreamsim(pretrained=True, device="cuda")   # 首次自动下载权重
+img1 = preprocess(Image.open("a.png")).to("cuda")              # → (1,3,224,224), 值域[0,1]
+img2 = preprocess(Image.open("b.png")).to("cuda")
+distance = model(img1, img2)        # 标量，越小越相似
+```
+批量评测先 `model.embed(img)` 缓存单图嵌入，再两两算 `1−cos`，比反复 `model(a,b)` 快。
+
+### 三种典型用法
+- **A. 测生成模型(有参考图)**：成对算「生成图↔金标准图」距离再平均，分越低越接近参考；A 模型 0.21 < B 模型 0.34 → A 更优。**对视频**：逐帧(生成第 t 帧↔真值第 t 帧)算后平均，即得逐帧感知距离指标(位置类似 FID/LPIPS)。
+- **B. 测一致性/编辑(无参考图)**：同主体多图两两距离越小越一致；编辑忠实度 = `distance(原图,编辑图)` 应小、对目标属性应大。
+- **C. 图像检索**：`query_embed=model.embed(...)` 与图库嵌入算 `1−cos` 排序取最近邻。
+
+```python
+import torch
+dists = []
+for gen_path, ref_path in pairs:                       # 你的模型输出 vs 金标准
+    g = model.embed(preprocess(Image.open(gen_path)).to("cuda"))
+    r = model.embed(preprocess(Image.open(ref_path)).to("cuda"))
+    dists.append((1 - torch.cosine_similarity(g, r, dim=-1)).item())
+score = sum(dists) / len(dists)        # 平均感知距离，越低越好，无人工参与
+```
+
+### 想"换模型变体测自身"才走自带脚本
+若"别的模型"指 DreamSim 的不同骨干(ensemble/dino/dinov2/synclr…)，则在 NIGHTS 上算 2AFC：
+```bash
+export PYTHONPATH="$PYTHONPATH:$(realpath ./dreamsim)"
+python -m evaluation.eval_percep --dreamsim_type dinov2_vitb14   # 换 --dreamsim_type 比不同变体
+```
+
 ---
 **一句话定位**：DreamSim = 用人类 2AFC 数据（NIGHTS）微调 DINO+CLIP 集成得到的"感知距离函数"，既是度量工具，其自身好坏又用 2AFC 准确率来衡量。
