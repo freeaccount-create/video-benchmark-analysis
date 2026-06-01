@@ -1,6 +1,6 @@
 # Video / Story / Editing Benchmarks — 源码级深度分析
 
-本仓库对 10 个与「视频 / 视觉叙事 / 图像编辑」相关的开源 benchmark（及一个被误列入的 3D 检测项目）进行了**源码级**分析。每个 benchmark 一篇文档，统一覆盖：
+本仓库对 10 个与「视频 / 视觉叙事 / 图像编辑」相关的开源 benchmark 进行了**源码级**分析。每个 benchmark 一篇文档，统一覆盖：
 
 1. **数据集由来** —— 原始数据从哪来、为什么造、对应论文
 2. **原始数据格式** —— 原始数据集长什么样（字段、文件类型）
@@ -23,14 +23,15 @@
 | 7 | **RISEBench** | 推理驱动的图像编辑 | GPT-4.1 多维打分 | [07-risebench.md](./07-risebench.md) |
 | 8 | **ShotBench** (Vchitect) | 电影摄影语言理解 | 选择题准确率 | [08-shotbench.md](./08-shotbench.md) |
 | 9 | **VinaBench** | 视觉叙事生成 | CLIP + VQA 约束对齐 | [09-vinabench.md](./09-vinabench.md) |
-| 10 | **SFD** ⚠️ | **3D 目标检测（非视频）** | KITTI AP | [10-sfd.md](./10-sfd.md) |
+| 10 | **SFD** (Short Film Dataset / SF20K) | 故事级长视频理解 QA | MCQA 准确率 + OEQA LLM 裁判 | [10-sfd.md](./10-sfd.md) |
 
 ## 重要说明
 
-- **第 10 个 SFD 不是视频/故事 benchmark**。它是 CVPR 2022 的 LiDAR 3D 目标检测方法（Sparse Fuse Dense），与其余 9 个无关，单独成篇并在文档开头标注。
+- **第 10 个 SFD = Short Film Dataset（发布版 SF20K）**，是**故事级长视频理解问答基准**（2 万部公开业余短片、多类型、平均十余分钟），含 MCQA + OEQA 两任务。
+  - ⚠️ 早期版本曾把 SFD 误指为 `LittlePey/SFD`（CVPR 2022 LiDAR 3D 检测方法），链接错误，现已更正为论文 [Long Story Short (arXiv 2406.10221)](https://arxiv.org/abs/2406.10221) / [项目页](https://ridouaneg.github.io/sf20k.html) / [HF 数据集](https://huggingface.co/datasets/rghermi/sf20k)。
 - 打分范式可粗分三类：
   - **经典自动指标**（FID/FVD/CLIP/IS/光流…）：StoryBench、MovieBench、VBench（部分维度）
-  - **模型 / VLM 当裁判**（GPT-4o、LLaVA、MiniCPM…）：Video-Bench、StoryEval、RISEBench、VinaBench、ShotBench
+  - **模型 / VLM 当裁判**（GPT-4o、LLaVA、MiniCPM…）：Video-Bench、StoryEval、RISEBench、VinaBench、ShotBench、SFD（OEQA）
   - **度量本身**（学习人类感知）：DreamSim
 
 ---

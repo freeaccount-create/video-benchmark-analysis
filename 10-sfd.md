@@ -1,81 +1,96 @@
-# SFD —— ⚠️ 这不是视频/故事 benchmark，而是 3D 目标检测方法
+# SFD（Short Film Dataset）—— 故事级长视频理解基准
 
-> 仓库：`LittlePey/SFD` · 论文：[Sparse Fuse Dense: Towards High Quality 3D Detection with Depth Completion](https://arxiv.org/abs/2203.09780) (CVPR 2022, Oral)
+> 论文：[Long Story Short: Story-level Video Understanding from 20K Short Films](https://arxiv.org/abs/2406.10221)（Ghermi, Wang, Kalogeiton, Laptev；LIX, École Polytechnique / IP Paris + MBZUAI，2024，2025-01 修订）
+> 项目页：https://ridouaneg.github.io/sf20k.html · 数据集：[HuggingFace `rghermi/sf20k`](https://huggingface.co/datasets/rghermi/sf20k) · [Papers with Code: SFD](https://paperswithcode.com/dataset/sfd)
 
-## ⚠️ 重要说明
+## ⚠️ 关于命名（更正旧版）
 
-SFD 被误列入了"video 相关数据集"清单，但它**完全不是视频/视觉叙事/图像编辑 benchmark**。它是一个**自动驾驶场景下的 LiDAR 3D 目标检测方法**（一个模型/方法的官方实现，而非评测基准），基于 Voxel-R-CNN 和 OpenPCDet 框架构建。它处理**单帧点云+图像**，与其余 9 个生成类基准没有任何关系。这里如实记录其本质，避免混淆。
+本仓库早期把 SFD 误指为 `LittlePey/SFD`（CVPR 2022 的 LiDAR 3D 检测方法），那是**完全错误**的链接。真正的 **SFD = Short Film Dataset**：一个聚焦**长篇幅、多类型故事**的**视频理解评测基准**（不是方法）。论文初版以 1,078 部短片、4,885 道题提出 SFD；正式发布版扩展为 **SF20K（Short-Films 20K）**，规模 **20,143 部业余短片、约 3,582 小时**（平均每片 ~11–13 分钟）。下文以发布版 SF20K 为准。
 
-## 1. 它是什么 / 解决什么任务
+## 1. 数据集由来
 
-- **任务**：在 KITTI 数据集上做 **3D 目标检测**（主要检测 Car 类）。
-- **核心思想**：稀疏的 LiDAR 点云信息量不足，SFD 用图像做**深度补全(depth completion，TWISE)** 生成稠密"伪点云"，再把稀疏真实点云与稠密伪点云融合(Sparse Fuse Dense)，提升检测质量。
+现有电影数据集要么任务偏短时、要么视频不公开、要么因字幕/剧情早被 LLM 预训练吸收而存在**数据泄漏**。SFD/SF20K 为此从 **YouTube / Vimeo** 收集**公开的业余短片**：
 
-**输入**：
-- 稀疏 LiDAR 点云 (x,y,z,intensity)
-- RGB 图像 (image_2)
-- 稠密深度图 / 伪点云 (x,y,z,r,g,b,seg,u,v，9 维)
-- 标定文件 calib
+- **长篇幅**：平均 ~11–13 分钟，远长于多数视频 QA 数据集，需跨越完整叙事做长时推理。
+- **多类型**：横跨剧情(narrative fiction)、纪录(documentary)、动画(animation) 等风格，以及动作/剧情/喜剧/恐怖等题材，视觉风格与叙事方式多样。
+- **低泄漏**：业余短片极少被 LLM 见过，缓解了商业电影数据集的泄漏问题。
+- 每部短片配一句高层概述 **logline**，并据其衍生问答。
 
-**输出**：3D 边界框 `(x,y,z,l,w,h,θ)` + 类别 + 置信度。
+目标：评测模型能否在**整段长视频**上理解人物、设定、关键事件与主题，做**故事级**（而非片段级）的长时推理。
 
-## 2. 原始数据格式（KITTI）
+## 2. 原始数据格式
 
-标准 KITTI 3D 检测格式，目录 `data/kitti_sfd_seguv_twise/`：
-- `velodyne/`：`.bin` 点云（float32，每点 4 维）
-- `image_2/`：`.png` 左目彩图
-- `calib/`：相机/雷达标定 `.txt`
-- `label_2/`：标注 `.txt`，**每行一个目标**，KITTI 标准 15 字段：
-  ```
-  Car 0.00 0 -1.58  587.0 156.4 615.2 189.5  1.48 1.60 3.69  1.84 1.47 8.41  -1.56
-  类别 截断 遮挡 观测角  2Dbox(x1 y1 x2 y2)  h w l  3D中心(x y z)  旋转角ry
-  ```
-- 训练 3712 帧、验证 3769 帧。
+数据托管在 HuggingFace `rghermi/sf20k`，**4 个 split**：`train` / `test` / `test_silent` / `test_expert`（silent=无字幕/对白线索，expert=人工精校的高难子集）。每行就是**一道题**，真实列结构（HF schema，逐字）：
 
-## 3. 整体 Pipeline / 如何使用
+| 列 | 类型 | 说明 |
+|----|------|------|
+| `question_id` | string | 题 ID，如 `z9HVSEot-O8_00`（`{video_id}_{序号}`） |
+| `video_id` | string | 短片 ID（即 YouTube id） |
+| `question` | string | 问题文本 |
+| `answer` | string | **标准答案文本**（开放式 OEQA 用） |
+| `option_0` … `option_4` | string | MCQA 的 **5 个选项**（A–E） |
+| `correct_answer` | float64 | 正确选项的**索引**（0–4） |
+| `correct_letter` | string | 正确选项**字母**（A–E） |
+| `video_url` | string | 短片地址（YouTube/Vimeo），视频本体按需自行下载 |
 
-模型 SFD（`pcdet/models/detectors/sfd.py`）：MeanVFE → VoxelBackBone8x(3D) → BaseBEVBackbone(2D/BEV) → AnchorHeadSingle(RPN) → **SFDHead**(ROI 头，含 RoI Grid/Point/Voxel Pool，用 CPConvs 处理伪点云)。
-
-**训练**：
-```bash
-cd SFD/tools
-scripts/dist_train.sh 8 --cfg_file cfgs/kitti_models/sfd.yaml
+**真实样本（test split，逐字摘录）**
+```json
+{
+  "question_id": "z9HVSEot-O8_00",
+  "video_id": "z9HVSEot-O8",
+  "question": "What prompts Nina to move to the city?",
+  "answer": "The synopsis does not specify why Nina moves to the city.",
+  "option_0": "Nina moves to the city to pursue a career in fashion design.",
+  "option_1": "The synopsis does not specify why Nina moves to the city.",
+  "option_2": "Nina moves to the city to escape a troubled family situation.",
+  "option_3": "Nina moves to the city to study architecture at a prestigious university.",
+  "option_4": "Nina moves to the city to attend a specialized cooking school.",
+  "correct_answer": 1.0,
+  "correct_letter": "B",
+  "video_url": "https://www.youtube.com/watch?v=z9HVSEot-O8"
+}
 ```
-**评估**：
-```bash
-scripts/dist_test.sh 8 --cfg_file cfgs/kitti_models/sfd.yaml \
-    --ckpt ../output/.../checkpoint_epoch_40.pth
-```
+> 注意「正确答案是『概述里没说』」这类**干扰项**：问答由 LLM 从 logline/synopsis 生成、再经人工筛选与改写，专门构造有挑战性的 distractor。
 
-## 4. 评测方式（与生成类基准无关）
+## 3. 任务与打分流程
 
-KITTI 官方指标（`pcdet/.../kitti_object_eval_python/eval.py`）：
-- **2D BBox AP、BEV AP、3D AP、AOS**，以及 R40 变体（mAP_3d_R40 等）。
-- 召回阈值 [0.3, 0.5, 0.7]，Car 类按 Easy/Moderate/Hard 难度。
+两类故事级 videoQA 任务：
 
-## 5. 与其余基准的关系
+- **MCQA（Multiple-Choice QA）**：5 选 1，模型选一个字母，与 `correct_letter` 比对。
+- **OEQA（Open-Ended QA）**：自由生成答案文本，与标准 `answer` 比较是否语义正确（**LLM-as-judge** 判对错）。
 
-| 维度 | SFD | 其余 9 个 |
-|------|-----|----------|
-| 领域 | 自动驾驶 LiDAR 感知 | 视频/图像/叙事生成 |
-| 输入 | 单帧点云+图像 | 文本/视频/图像 |
-| 性质 | 检测**方法**(模型) | 评测**基准** |
-| 指标 | KITTI AP/mAP | FID/FVD/CLIP/VLM 打分等 |
+**输入模态**可分三种设定，用来拆解"看懂"还是"读懂"：
+1. **Transcript-only**：只给字幕/ASR 文本 → LLM 答题；
+2. **Vision-only**（≈ `test_silent`）：只给画面帧 → 视频模型答题；
+3. **Multimodal**：画面 + 字幕一起。
 
-**结论**：与视频生成评测毫无关系，建议从"video benchmark"清单中剔除。
+**核心发现**：① 字幕里信号很强，Transcript+LLM 可逼近人类；② 仅用视觉时，现有视频模型**远低于人类**；③ 需要**长时间窗**才能解题；④ 在 `SF20K-Train` 上做大规模指令微调能提升表现。
+
+## 4. 用到的模型
+
+- **被测**：各类 LLM（读 transcript）与视频多模态模型（读帧/帧+字幕），如 GPT 系列、开源 Video-LLM 等（论文表格列多个 baseline），并与**人类**对照。
+- **判分辅助**：OEQA 用 **LLM-as-judge**（GPT 类）判生成答案与标准答案是否一致。
+
+## 5. 实际数据案例全过程
+
+以上面 `z9HVSEot-O8_00`（问"是什么促使 Nina 搬到城市？"）为例：
+
+1. **取视频**：按 `video_url` 下载该短片（~10 分钟）。
+2. **MCQA**：把 5 个 option（A–E）+ 问题连同视频/字幕送模型 → 模型输出字母；与 `correct_letter="B"` 比对得 0/1。
+3. **OEQA**：去掉选项，模型自由作答 → LLM-as-judge 对比标准答案 `"The synopsis does not specify..."` 判对错。
+4. **聚合**：MCQA 按 split 算准确率；OEQA 按 judge 判定的正确率；分别对比 transcript / vision / multimodal 三设定与人类基线。
 
 ## 6. 指标公式速查表（简介·模型·公式·参数）
 
-> ⚠️ SFD 是 3D 检测**方法**，指标是 KITTI 官方标准，与生成类完全不同。记号：`P(r)`=召回 r 时的精度，AP 用插值。
+> 两个任务都是"准确率"型。记号：`N`=题数，`1[·]`=指示函数。
 
 | 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
 |---|---|---|---|
-| **3D AP (R40)** | 3D 框检测平均精度 | SFD 检测器 | $\text{AP}=\dfrac{1}{40}\sum_{r\in R_{40}}\max_{\tilde r\ge r}P(\tilde r)$ ·· `R_40`=40 个召回点 {1/40,…,1}；3D IoU 阈值 Car=0.7；分 Easy/Mod/Hard |
-| **BEV AP** | 鸟瞰图框平均精度 | 同上 | 同上 AP 公式，IoU 在 BEV(俯视 2D)上算 |
-| **2D BBox AP** | 图像 2D 框平均精度 | 同上 | 同上 AP 公式，IoU 在图像平面 2D 框上算 |
-| **AOS** | 朝向估计相似度 | 同上 | $\text{AOS}=\dfrac{1}{40}\sum_{r}\max_{\tilde r\ge r}s(\tilde r)$，$s(r)=\dfrac{1}{\|D(r)\|}\sum_i\dfrac{1+\cos\Delta\theta_i}{2}$ ·· `Δθ`=预测与真值朝向角差；只对正确检出累加 |
+| **MCQA Accuracy** | 5 选 1 选择题准确率 | 被测 LLM / 视频模型 | $\text{Acc}=\dfrac{1}{N}\sum_i \mathbb{1}[\hat\ell_i=\text{correct\_letter}_i]$ ·· `ℓ̂`=模型所选字母(A–E)；5 个选项含 LLM 构造的强干扰项 |
+| **OEQA Accuracy** | 开放式问答正确率 | 被测模型 + LLM-as-judge | $\text{Acc}=\dfrac{1}{N}\sum_i \mathbb{1}[\text{Judge}(\hat a_i,\,a_i)=\text{correct}]$ ·· `â`=模型自由生成答案，`a`=标准 `answer`，Judge=GPT 类裁判判语义是否等价 |
+| **（分设定/与人对照）** | 拆解视觉 vs 文本能力 | — | 同上准确率，分别在 **transcript-only / vision-only(`test_silent`) / multimodal** 三设定下计算，并与 **Human** 基线对比 |
 
-**参数说明**：①召回阈值 IoU∈[0.3,0.5,0.7]，Car 主用 0.7；②难度 Easy/Moderate/Hard 按框高/遮挡/截断划分；③R40=40 点插值(替代旧 R11)；④评测脚本 `kitti_object_eval_python/eval.py`。
+**参数说明**：①MCQA 为确定性字母匹配，无需裁判；②OEQA 依赖 LLM 裁判，故引入裁判模型；③`test_expert` 为人工精校高难子集、`test_silent` 用于纯视觉评测；④强调长时间窗——短片平均 ~11–13 分钟，截断过短会显著掉分。
 
 ---
-**一句话定位**：SFD = CVPR 2022 的 LiDAR+图像融合 3D 检测方法（KITTI Car），是模型而非基准，被误归类到视频 benchmark。
+**一句话定位**：SFD（Short Film Dataset，发布版 SF20K）= 2 万部公开业余短片(多类型、平均十余分钟)上的**故事级长视频问答基准**，含 MCQA(准确率)与 OEQA(LLM 裁判)两任务，专测长时叙事理解；现有视频模型纯视觉下远逊于人类。
