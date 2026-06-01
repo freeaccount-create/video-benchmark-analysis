@@ -62,7 +62,7 @@ CLIP ViT-B/16（CLIP Score）、InceptionV3（IS / FID）、CLIP ViT-L/14 + LAIO
 5. **聚合**：每个指标对全部测试 shot 求平均；角色指标输出 Precision/Recall/F1。
 6. **输出**：各 `Metric_*.py` 打印对应分数（avg_clip_score、IS mean/std、FID、P/R/F1、Average FVD）。
 
-## 7. 指标公式速查表（简介·模型·公式·参数）
+## 6. 指标公式速查表（简介·模型·公式·参数）
 
 > 记号：`cos`=余弦相似度，`N`=帧数，`mean`=平均。6 个指标各跑一脚本再对全部 shot 平均。
 
@@ -76,6 +76,37 @@ CLIP ViT-B/16（CLIP Score）、InceptionV3（IS / FID）、CLIP ViT-L/14 + LAIO
 | **FVD** | 视频时序分布距离 | I3D(400d) | 同 FID 的 Fréchet，但特征是整段视频 I3D 时空特征；对每个 `t≥10` 的片段算后平均（`Metric_6`） |
 
 **参数说明**：①CLIP Score 抽 25 帧、Character ID 抽 5 帧；②FID 用 192 维 Inception 输出、512×512；③角色一致性 Precision 分母对 FP 除以 1.4 做软化；④FVD 要求片段长度 ≥10 帧。
+
+## 7. 关键澄清：生成条件 ≠ 一句描述；人脸匹配比的是"认成了谁"
+
+读源码后澄清两个最易误解的点（`README.md` 数据结构 + `Metric_5_Character_ID_Consistency.py`）：
+
+### (1) 喂给生成模型的，远不止 Plot
+每个 shot 的标注 JSON（GPT-4 生成）含多字段，且**另配 Character Bank 真实参考脸**：
+```json
+{
+  "Characters": { "Harry Potter": "瘦小男孩,圆框眼镜,额头闪电疤…(≤30词)", "Hermione": "棕色卷发…" },
+  "Style Elements": ["…"],
+  "Plot": "主要事件/情绪(≤80词)",
+  "Background Description": "场景(≤40词)",
+  "Camera Motion": "运镜(≤30词)"
+}
+```
+- 参考脸：`Character_Bank_All/{movie}/{角色}/best.jpg`（每角色多张真实剧照）。
+- 所以是"**角色聚焦生成**"：模型拿到 **Plot + 逐角色外观描述 + 角色参考脸**，事先就知道角色长相，不是凭一句话猜脸。`asset/keyframeGen.png` 画的就是这条"按角色库生成关键帧"的流程。
+
+### (2) 生成单位是 shot，不是整部电影
+最小单位是带时间码的 shot 片段；"电影级长视频"由众多 shot 拼成。ID 一致性指标真正考的是**跨 shot / 跨场景同一身份还认得出**（第 1 场和第 50 场的 Harry 仍被识别为同一人）——这是 MovieBench 的核心难题，也是当时模型普遍失分处。
+
+### (3) 人脸指标比的是"角色名"，不是"脸像不像"
+`Metric_5` 真实逻辑（**不直接输出人脸相似度分**）：
+```
+生成帧检出的脸 → DeepFace.find 在 Character Bank 检索 → 取 top-1 文件名 → 得到一个"识别出的角色名"
+```
+再把「识别出的角色名集合 `pred_content`」与「该 shot 标注 `Characters` 应出现的角色名集合」做**集合比对**：
+- 该出现且认对 = **TP**；认成不该有的人 = **FP**；该出现却没认出 = **FN** → `Precision / Recall / F1`。
+
+> 即：真实角色脸只当**身份字典**，最终粒度到**角色名是否对得上**，而非逐像素比脸。人脸检测置信度阈值 0.8，识别 `distance_metric=euclidean_l2`，`enforce_detection=False`。
 
 ---
 **一句话定位**：MovieBench = LSMDC 160 部电影按场景/镜头组织 + 角色人脸库，用 CLIP/IS/FID/FVD 评画质、用 DeepFace 评跨场景角色一致性，专攻"电影级长视频"。
