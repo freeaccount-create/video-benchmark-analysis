@@ -64,5 +64,17 @@ type: ["image"]   path: ["images/xxx.jpg"]   answer: "D"   category: "Shot Size"
 4. **聚合**：该题计入 `category="Shot Size"`；最终 `Shot Size 准确率 = 该维度 correct/total`，并汇总 8 维 + 整体平均。
 5. **输出**：`eval_results/ShotVL-3B/predictions_{ts}.xlsx`（Results + Accuracy 两表）。
 
+## 7. 指标公式速查表（简介·模型·公式·参数）
+
+> ShotBench 是**选择题准确率**型基准：VLM 选字母 → 判对错 → 按 8 维分组算准确率。无数值回归指标。
+
+| 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
+|---|---|---|---|
+| **Hit（单题对错）** | 单题预测是否正确 | 被测 VLM（如 ShotVL-3B/7B） | $\text{hit}=\mathbb{1}[\text{pred\_letter}=\text{answer}]$ ·· `pred_letter`三级抽取：①取`<answer>`字母→②选项文本匹配→③GPT-4o 语义对齐(≤3 次)（`calculate_scores.py:25-93`） |
+| **Category Accuracy（8 维）** | 每个摄影维度的准确率 | 同上 | $\text{Acc}_{cat}=\dfrac{\#\{\text{该维度 hit}=1\}}{\#\{\text{该维度题数}\}}$ ·· 按 `category` 分组(`:126`)；8 维=景别/构图/机位/焦段/布光类型/曝光/画面构成/运镜 |
+| **Overall Accuracy** | 整体平均准确率 | 同上 | $\text{Acc}=\dfrac{\text{correct}}{\text{total}}$ ·· 参考：GPT-4o≈59.3%，ShotVL-7B≈70.1%(SOTA) |
+
+**参数说明**：①推理用贪心解码 `do_sample=False`；视频 `process_vision_info`(max_pixels 360×640, fps 12)；②GPT-4o 仅作答案对齐兜底，不参与打分；③拒答/失败映射为随机或 Z；④输出 Excel 双表 Results + Accuracy。
+
 ---
 **一句话定位**：ShotBench = 200+ 获奖电影的 3500+ 道摄影语言选择题，VLM 答题→（必要时 GPT-4o 帮忙对齐答案）→按 8 个摄影维度算准确率；并配套开源 ShotVL 模型。

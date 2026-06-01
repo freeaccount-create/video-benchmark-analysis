@@ -62,5 +62,20 @@ python evaluate.py --eval_model_type llava \
 6. **投票**：跑 3 次，假设结果 `[1,1] / [1,0] / [1,1]` → 逐事件平均 `[1.0, 0.667]`，总体 `completion_score_avg = (1.0+0.5+1.0)/3 ≈ 0.83`；严格投票下事件2因非全 1 记 0。
 7. **输出**：`results/{model}_llava_final.json`，每条含 `completion_list_avg`、`completion_score_avg` 及 3 次 `outputX`(description/scoring_output/seed)；`summarization.py` 按 class 汇总各类平均完成率。
 
+## 6. 指标公式速查表（简介·模型·公式·参数）
+
+> StoryEval 的核心是**事件完成度**：VLM 逐事件判 0/1，再做跨次投票与分组平均。记号：`N`=事件数，`M`=重复次数(`repeat_time=3`)，`K`=prompt 数。
+
+| 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
+|---|---|---|---|
+| **completion_list[i]** | 单次、单事件是否完成 | LLaVA-OV-72B / GPT-4o / Qwen2-VL-72B | $c_i\in\{0,1\}$ ·· VLM 严格判第 i 个事件，模糊/动作不清→0；正则 `\[COMPLETE_LIST\]:\s*(.*)` 取末次匹配（`evaluate.py:436-528`） |
+| **completion_score（单次）** | 单次视频的故事完成率 | 同上 | $s=\dfrac{1}{N}\sum_{i=1}^{N}c_i\in[0,1]$（`evaluate.py:531`） |
+| **completion_list_avg[i]** | 某事件跨 M 次的平均完成 | 同上 | $\bar c_i=\dfrac{1}{M}\sum_{j=1}^{M}c_{ij}$ ·· M 次用 seed 0/1/2 各跑一遍 |
+| **completion_score_avg** | 视频最终故事完成率 | 同上 | $\bar s=\dfrac{1}{N}\sum_{i=1}^{N}\bar c_i$（等价于 M 次单次分的平均） |
+| **strict vote（vote_type=1）** | 严格口径：N 次全完成才算成 | 同上 | $c_i^{strict}=\mathbb{1}[\bar c_i>0.9999]$ ·· 3 次必须全 1 才记完成，否则 0 |
+| **分组报告分** | 按 class 汇总各类平均 | — | $\text{Group}=\dfrac{1}{|G|}\sum_{k\in G}\bar s_k$ ·· G=同 class(内容/难度/事件数)样本集（`summarization.py:29-92`） |
+
+**参数说明**：①每视频均匀抽 16–32 帧、统一 512×320；②流程= 描述帧→拼事件列表→逐事件判→投票；③长度与事件数不符则重试 ≤3 次；④strict 与软平均两套口径并存输出。
+
 ---
 **一句话定位**：StoryEval = 把故事拆成事件，用大 VLM"看视频→逐事件判完成→3 次投票"，最终输出故事完成率，专测叙事完整性而非画质。

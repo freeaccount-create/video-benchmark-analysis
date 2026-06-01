@@ -68,5 +68,23 @@ yes/no 类从首 token 的 "Yes/yes/YES" 概率和取分，全样本平均。
 5. **一致性**：把 Anna 出现的场景1、3两张图一起问 "Do all these images contain the same character Anna: {描述}? yes/no" → 角色一致性分。
 6. **聚合 & 输出**：每个指标全样本取平均，写成多个 JSON（如 `*_clipt_mrr_scores.json`、`*_llava_vqa_char_consist_scores.json`、`*_minicpm_vqa_*_scores.json`），结构 `{dataset_experiment: 分数}`。
 
+## 6. 指标公式速查表（简介·模型·公式·参数）
+
+> VinaBench 三类指标：CLIP 数值类、检索类、VQA 是非类。VQA 类统一 `score=1 if answer.lower().startswith("yes") else 0`，全样本平均。
+
+| 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
+|---|---|---|---|
+| **CLIP-I** | 生成图↔金标准图相似度 | CLIP ViT-L/14 | $\text{CLIP-I}=\mathrm{mean}\big(\cos(\phi(I_g),\phi(I_r))\big)$ ·· 逐场景图像特征余弦后平均 |
+| **CLIP-T** | 叙事文本↔生成图对齐 | CLIP ViT-L/14 | $\text{CLIP-T}=\mathrm{mean}\big(\cos(\phi(T),\phi(I_g))\big)$ ·· `T`=该场景叙事文本特征 |
+| **FID** | 生成 vs 真实图分布距离 | InceptionV3(2048d) | $d^2=\lVert\mu_g-\mu_r\rVert^2+\mathrm{Tr}(\Sigma_g+\Sigma_r-2\sqrt{\Sigma_g\Sigma_r})$ ·· 2048 维 Inception 特征 |
+| **MRR** | 生成图在候选池中的检索排名 | CLIP ViT-L/14 | $\text{MRR}=\dfrac{1}{rank+1}$ ·· 建 top-100 图像候选池，按 CLIP-T 排序，取金标准图所在名次 |
+| **Entity Align** | 实体是否出现 | MiniCPM-V-2.6 / LLaVA-OV-72B | 每实体问 "Does this image contain '{e}'?" → `mean(1 if yes)` |
+| **Character Num Align** | 出场角色数是否正确 | 同上 | "How many characters?" → `1 if int(ans)==标注数 else 0`（精确整数匹配） |
+| **Character Attr Align** | 角色是否符合描述 | 同上 | "Do characters fit descriptions? yes/no" → yes 率 |
+| **Time / Location Align** | 时间/地点是否匹配 | 同上 | "Is this image taken at/in {time\|loc}? yes/no" → yes 率 |
+| **Char / Location / Style Consistency** | 多图是否同角色/地点/风格 | 同上（多图输入） | 多图同问 "Do all images contain same {character\|location\|style}? yes/no" → yes 率 |
+
+**参数说明**：①CLIP 类用 ViT-L/14；②VQA 类双模型（LLaVA-OV-72B + MiniCPM-V-2.6）交叉验证，分数取首 token "Yes" 概率或 `startswith("yes")`；③CharNum 是唯一精确数值匹配项；④一致性类把同一实体出现的多张图一起送入。
+
 ---
 **一句话定位**：VinaBench = VWP/Storyboard20K/StorySalon 视觉叙事 + 常识/话语约束标注，用 CLIP（FID/CLIP-I/CLIP-T/MRR）测画质对齐、用 LLaVA+MiniCPM 双 VQA 测角色/时间/地点/风格的对齐与一致性。

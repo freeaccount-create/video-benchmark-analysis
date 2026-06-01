@@ -62,5 +62,20 @@ CLIP ViT-B/16（CLIP Score）、InceptionV3（IS / FID）、CLIP ViT-L/14 + LAIO
 5. **聚合**：每个指标对全部测试 shot 求平均；角色指标输出 Precision/Recall/F1。
 6. **输出**：各 `Metric_*.py` 打印对应分数（avg_clip_score、IS mean/std、FID、P/R/F1、Average FVD）。
 
+## 7. 指标公式速查表（简介·模型·公式·参数）
+
+> 记号：`cos`=余弦相似度，`N`=帧数，`mean`=平均。6 个指标各跑一脚本再对全部 shot 平均。
+
+| 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
+|---|---|---|---|
+| **CLIP Score** | 帧↔shot 描述文本对齐 | CLIP ViT-B/16 | $\text{CLIP}=\mathrm{mean}\big(\cos(I_f,T)\big)$ ·· `I_f`=帧图像特征(抽 25 帧)，`T`=Plot 文本特征；Resolution 256（`Metric_1`） |
+| **Inception Score** | 画质+多样性 | InceptionV3 | $\text{IS}=\exp\big(\mathbb{E}_x\,\mathrm{KL}(p(y\mid x)\,\Vert\,p(y))\big)$ ·· `p(y\|x)`=单图类别分布，`p(y)`=边缘分布；越大越好（`Metric_2`） |
+| **Aesthetic Score** | 美学观感 | CLIP ViT-L/14 + LAION 线性头 | $A=\mathrm{mean}\big(\text{Linear}_{768\to1}(\phi_{CLIP}(I_f))\big)$ ·· 美学头对 768 维 CLIP 特征回归 0–10 分（`Metric_3`） |
+| **FID** | 生成 vs 真实分布距离 | InceptionV3(192d) | $d^2=\lVert\mu_g-\mu_r\rVert^2+\mathrm{Tr}(\Sigma_g+\Sigma_r-2\sqrt{\Sigma_g\Sigma_r})$ ·· Inception 特征 192 维，图像 512×512；越小越好（`Metric_4`） |
+| **Character ID Consistency** | 跨场景角色身份一致 | DeepFace(fastmtcnn+ArcFace) | $P=\dfrac{TP}{TP+FP/1.4},\;R=\dfrac{TP}{TP+FN},\;F1=\dfrac{2PR}{P+R}$ ·· 抽 5 帧检测人脸(置信度≥0.8)→Bank 中 `euclidean_l2` 找最相似角色→与标注比对得 TP/FP/FN（`Metric_5`） |
+| **FVD** | 视频时序分布距离 | I3D(400d) | 同 FID 的 Fréchet，但特征是整段视频 I3D 时空特征；对每个 `t≥10` 的片段算后平均（`Metric_6`） |
+
+**参数说明**：①CLIP Score 抽 25 帧、Character ID 抽 5 帧；②FID 用 192 维 Inception 输出、512×512；③角色一致性 Precision 分母对 FP 除以 1.4 做软化；④FVD 要求片段长度 ≥10 帧。
+
 ---
 **一句话定位**：MovieBench = LSMDC 160 部电影按场景/镜头组织 + 角色人脸库，用 CLIP/IS/FID/FVD 评画质、用 DeepFace 评跨场景角色一致性，专攻"电影级长视频"。

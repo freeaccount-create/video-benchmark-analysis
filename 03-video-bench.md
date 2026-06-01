@@ -64,5 +64,25 @@ python evaluate.py --dimension color --videos_path ./data/ \
 4. **聚合**：每个维度对所有 prompt 求平均，写
    `evaluation_results/{dimension}/{name}_score_results.json`（含 `average_scores` 与逐条 `scores`）+ `_history_results.json`（多轮对话全程）。
 
+## 6. 指标公式速查表（简介·模型·公式·参数）
+
+> Video-Bench 全部维度都是 **VLM 当裁判 → 正则抽分 → 算术平均**，无 CV 数值指标。统一聚合：
+> $$\text{Dim\_Score}=\frac{1}{K}\sum_{k=1}^{K}s_k$$
+> ·· `K`=该维度视频数；`s_k`=第 k 个视频从 VLM 输出正则抽出的整数分；抽分用 `re.search(r':\s*(\d+)')` 或取 "because" 前最近数字；所有 API `temperature=0`，抽帧 2fps。
+
+| 维度 | 简介 | 模型 | 计算公式 + 参数说明 |
+|---|---|---|---|
+| **Aesthetic Quality** | 美学（色彩/构图/清晰度） | GPT-4o | `s_k∈{1..5}`，GPT-4o 按 5 级标准直接打分；维度分=`mean(s_k)`（`staticquality.py:85-106`） |
+| **Imaging Quality** | 成像（模糊/噪声/曝光） | GPT-4o | 同上，`s_k∈{1..5}` |
+| **Temporal Consistency** | 帧间一致（防闪烁/突变） | GPT-4o（多帧） | `s_k∈{1..5}`；多帧并行送入，`extract_scores_from_result()` 取每段 "because" 前数字（`dynamicquality.py:20-121`） |
+| **Motion Effects** | 运动是否符合物理/动感 | GPT-4o（多帧） | 同上，`s_k∈{1..5}` |
+| **Color** | 物体颜色对不对 | GPT-4o + GPT-4o-mini | `s_k∈{1..3}`；多轮对话 Host 描述→Agent 提问→Host 答→总结给 `[Evaluation Result]: x`，抽 x（`VideoTextAlignment.py:227-296`） |
+| **Object Class** | 物体类别对不对 | GPT-4o + GPT-4o-mini | 同 Color 多轮框架，`s_k∈{1..3}` |
+| **Scene** | 场景对不对 | GPT-4o + GPT-4o-mini | 同上，`s_k∈{1..3}` |
+| **Action** | 主体动作对不对 | GPT-4o + GPT-4o-mini | 同上，`s_k∈{1..3}` |
+| **Video-Text Consistency** | 总体内容匹配 | GPT-4o + GPT-4o-mini | 同多轮框架，但 `s_k∈{1..5}`（综合物体/动作/场景/颜色/数量/风格） |
+
+**参数说明**：①前 4 维(质量类)是 GPT-4o 单/多帧**直接打分**(1–5)；②后 5 维(对齐类)走 **Host(GPT-4o)+Agent(GPT-4o-mini) 多轮对话**，其中 Color/Object/Scene/Action 为 1–3 分、整体一致性为 1–5 分；③`s_k` 取整数，缺失/解析失败记 Error 不计入分母。
+
 ---
 **一句话定位**：Video-Bench = 维度化 prompt + GPT-4o/GPT-4o-mini 多轮对话当裁判，输出 1–5 / 1–3 分并求均值，主打"贴合人类偏好"。

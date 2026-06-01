@@ -64,5 +64,18 @@ KITTI 官方指标（`pcdet/.../kitti_object_eval_python/eval.py`）：
 
 **结论**：与视频生成评测毫无关系，建议从"video benchmark"清单中剔除。
 
+## 6. 指标公式速查表（简介·模型·公式·参数）
+
+> ⚠️ SFD 是 3D 检测**方法**，指标是 KITTI 官方标准，与生成类完全不同。记号：`P(r)`=召回 r 时的精度，AP 用插值。
+
+| 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
+|---|---|---|---|
+| **3D AP (R40)** | 3D 框检测平均精度 | SFD 检测器 | $\text{AP}=\dfrac{1}{40}\sum_{r\in R_{40}}\max_{\tilde r\ge r}P(\tilde r)$ ·· `R_40`=40 个召回点 {1/40,…,1}；3D IoU 阈值 Car=0.7；分 Easy/Mod/Hard |
+| **BEV AP** | 鸟瞰图框平均精度 | 同上 | 同上 AP 公式，IoU 在 BEV(俯视 2D)上算 |
+| **2D BBox AP** | 图像 2D 框平均精度 | 同上 | 同上 AP 公式，IoU 在图像平面 2D 框上算 |
+| **AOS** | 朝向估计相似度 | 同上 | $\text{AOS}=\dfrac{1}{40}\sum_{r}\max_{\tilde r\ge r}s(\tilde r)$，$s(r)=\dfrac{1}{\|D(r)\|}\sum_i\dfrac{1+\cos\Delta\theta_i}{2}$ ·· `Δθ`=预测与真值朝向角差；只对正确检出累加 |
+
+**参数说明**：①召回阈值 IoU∈[0.3,0.5,0.7]，Car 主用 0.7；②难度 Easy/Moderate/Hard 按框高/遮挡/截断划分；③R40=40 点插值(替代旧 R11)；④评测脚本 `kitti_object_eval_python/eval.py`。
+
 ---
 **一句话定位**：SFD = CVPR 2022 的 LiDAR+图像融合 3D 检测方法（KITTI Car），是模型而非基准，被误归类到视频 benchmark。

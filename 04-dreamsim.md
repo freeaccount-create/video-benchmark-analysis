@@ -58,5 +58,17 @@ twoafc_acc = mean(score)     # 越高越对齐人类
 
 > 若把 DreamSim 当作**别的视频/图像基准里的一个指标**用，就只走第 1–3 步：直接返回两图距离。
 
+## 6. 指标公式速查表（简介·模型·公式·参数）
+
+> DreamSim 是**学习型感知距离**：把三个骨干特征拼接过 MLP，输出一对图像的"知觉差异"，并用人类 2AFC（二选一）标注校准/评测。
+
+| 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
+|---|---|---|---|
+| **DreamSim Distance** | 一对图像的感知差异（越小越像） | DINO ViT-B/16 + CLIP ViT-B/16 + OpenCLIP ViT-B/16（集成） | $d(a,b)=1-\cos(\phi(a),\phi(b))$ ·· `φ(x)`=concat(DINO 768 + CLIP 512 + OpenCLIP 512 = **1792维**)→投影 MLP→L2 归一化嵌入；`cos`=余弦相似度（`model.py:79-105`） |
+| **2AFC Agreement（评测分）** | 与人类"哪张更像参考"的一致率 | 同上 | $\text{score}=\mathbb{1}[d_0<d_1](1-y)+\mathbb{1}[d_1<d_0]\,y+\mathbb{1}[d_0=d_1]\cdot0.5$，准确率=`mean(score)` ·· `d_0=d(ref,left)`、`d_1=d(ref,right)`；`y`=人类标签 `target`(选 right 为 1)；平局记 0.5（`evaluation/score.py:9-39`） |
+| **训练损失（造度量用）** | 让距离贴合人类偏好 | 同上 | Hinge：$L=\max(0,\;\text{margin}-(d_1-d_0)\cdot\tilde y)$ ·· `logit=d0−d1`，`margin=0.05`；只训 LoRA(qkv)+MLP，冻结骨干，`r=16, alpha=8, dropout=0.3` |
+
+**参数说明**：①三骨干均 ViT-B/16，输入 224×224，各自取 cls/embedding 后拼接；②距离用 `1−cos` 而非欧氏，范围 ~[0,2]；③评测集 NIGHTS（人类 2AFC 三元组 ref/left/right，≥6 票一致）；④集成模型 test 2AFC ≈ 96.2%。
+
 ---
 **一句话定位**：DreamSim = 用人类 2AFC 数据（NIGHTS）微调 DINO+CLIP 集成得到的"感知距离函数"，既是度量工具，其自身好坏又用 2AFC 准确率来衡量。

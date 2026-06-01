@@ -66,5 +66,19 @@ Logical:                  score = 0.3·Consistency + 0.7·Reasoning
 4. **加权**：`0.3×4 + 0.5×5 + 0.2×4 = 4.5`；百分比 `25×(4.5−1)=87.5%`；完成度=0（非全 5）。
 5. **输出**：`{model}.pkl`（缓存）、`{model}_judge.xlsx`（逐条 Reasoning/Consistency/Plausibility/score/complete）、`{model}_judge.csv`（Overall 及各类别 Score-Origin / Score-Percentage / Accuracy）。
 
+## 6. 指标公式速查表（简介·模型·公式·参数）
+
+> RISEBench 用单一裁判 **GPT-4.1**（temperature=0）对每条编辑结果按三维各打 1–5 分，再加权。抽分正则 `Final Score:\s*(\d+)`。
+
+| 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
+|---|---|---|---|
+| **Instruction Reasoning** | 输出是否符合 reference（推理对不对） | GPT-4.1 | $r\in\{1..5\}$ ·· 对比输出图与参考答案描述；Logical 类先 0/1 再映射 1/5（`gpt_eval.py:152-263`） |
+| **Appearance Consistency** | 除指令要求外是否保持一致 | GPT-4.1 | $c\in\{1..5\}$ ·· 对比[输入图,输出图]，非编辑区域是否未被破坏 |
+| **Visual Plausibility** | 是否清晰、物理合理 | GPT-4.1 | $p\in\{1..5\}$ ·· 仅看输出图的成像质量与合理性 |
+| **加权总分 score** | 三维加权 | — | 一般类：$s=0.3c+0.5r+0.2p$；Logical：$s=0.3c+0.7r$；若 $r=1$ 则 $s=\max(0.5s,1)$（推理崩了重罚，`calculate_score():287`） |
+| **百分比 / 完成度** | 报告口径 | — | $\text{percent}=25\,(s-1)$（1→0%，5→100%）；完成度=`所有维度全为5→1 否则 0` |
+
+**参数说明**：①推理权重最高(0.5/0.7)，体现"先想再改"导向；②Reasoning==1 触发对总分的 0.5 倍重罚且不低于 1；③Logical 类不计 Plausibility，权重重排到推理；④裁判含"带/不带输入图"两种模板。
+
 ---
 **一句话定位**：RISEBench = 64 条"需推理的编辑题"，用 GPT-4.1 从推理/一致性/合理性三维打分并加权（推理权重最高、推理崩了重罚），专测"会不会先想再改"。

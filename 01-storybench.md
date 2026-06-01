@@ -122,5 +122,22 @@ d² = ‖μ₁ − μ₂‖² + Tr(Σ₁ + Σ₂ − 2·√(Σ₁Σ₂))
 
 **⑤ 输出**：`{model}/story_cont/didemo_test/{metric}/result.txt`；DOVER 另出逐视频 TSV + aesthetic/technical/overall 三个聚合分，并写 TensorBoard 标量。
 
+## 6. 指标公式速查表（简介·模型·公式·参数）
+
+> 统一记号：`μ,Σ`=特征集合的均值/协方差；`v,t`=视频/文本特征向量；`cos(a,b)=a·b/(‖a‖‖b‖)`；`mean_x`=对 x 求平均。所有 FID/FVD 共用 `metrics/utils.py:66-118` 的 Fréchet 实现。
+
+| 指标 | 简介 | 模型 | 计算公式 + 参数说明 |
+|------|------|------|----------------------|
+| **FID-Inception** | 帧级真实度（生成帧分布 vs 真实帧分布） | InceptionV3(2048d) | $d^2=\lVert\mu_g-\mu_r\rVert^2+\mathrm{Tr}(\Sigma_g+\Sigma_r-2\sqrt{\Sigma_g\Sigma_r})$ ·· `μ_g,Σ_g`=生成帧 Inception 特征(2048维)的均值/协方差；`μ_r,Σ_r`=真实帧的；越小越真 |
+| **FID-CLIP** | 语义层面真实度 | OpenCLIP ViT-L/14-336 | 同上 Fréchet 公式，特征换成 CLIP 图像特征(768维)；测"语义分布"而非像素分布 |
+| **SIM-Inception / SIM-CLIP** | 帧级相似度（与真值帧对齐） | InceptionV3 / OpenCLIP | $S=\mathrm{mean}(\,\hat v_g\cdot\hat v_r\,)\times100$ ·· `v̂`=L2 归一化特征；逐帧与真值帧点积(=余弦)后取均值×100 |
+| **FVD-I3D** | 视频级时序分布真实度 | I3D(Kinetics-400, 400d) | 同 FID 的 Fréchet 公式，但特征是**整段视频**的 I3D 时空特征(400维)；含运动/时序 |
+| **FVD-InternVideo** | 视频级时序分布真实度 | InternVideo-MM-L/14(768d) | 同上，特征换 InternVideo 视频编码(8帧倍数窗口,768维)；`mean(0)`池化后求分布距离 |
+| **VTM-CLIP** | 视频↔文本对齐（**帧级**，无时序基线） | OpenCLIP | $S=\mathrm{mean}_{seg}(\hat v_{seg}\cdot\hat t_{seg})\times100$ ·· `v_seg`=该故事段内逐帧 CLIP 特征**平均**后 L2 归一化；`t_seg`=该句 CLIP 文本特征；按 `exact_frames_per_prompt` 切段，段分再平均（`vtm_clip.py:104,127`） |
+| **VTM-InternVideo** | 视频↔文本对齐（**视频级**，含时序） | InternVideo | 同上公式，但 `v_seg`=InternVideo 对整段(补齐/采样到 8 帧倍数)的**视频级编码** `mean(0)`+L2；能区分动作顺序（`vtm_internvideo.py:135`） |
+| **PQA-DOVER** | 无参考感知质量（美学+技术） | DOVER | $PQA=\tfrac{1}{2}\big(\sigma(\tfrac{a-\mu_a}{\sigma_a})+\sigma(\tfrac{q-\mu_q}{\sigma_q})\big)\times100$ ·· `a,q`=DOVER 美学/技术分支原始分；`σ`=sigmoid；`μ,σ`=各分支预设均值/方差做标准化；两分支融合×100（`pqa_dover.py:57-64`） |
+
+**关键参数**：StoryBench 把所有视频统一到 **96×160 像素、8 fps**；VTM 按故事句段(`exact_frames_per_prompt`)切分逐段算再平均；InternVideo 时序窗口=**8 帧**(224×224)；FID/FVD 的 `√(Σ_gΣ_r)` 用 `scipy.linalg.sqrtm`，奇异时加 `eps=1e-6` 对角扰动。
+
 ---
 **一句话定位**：StoryBench = 复用 OOPS/UVO/DiDeMo 真实视频 + 自动改造成故事任务，用 FID/FVD/CLIP/VTM/DOVER 等**经典指标**评连续故事生成，不依赖大模型裁判。
