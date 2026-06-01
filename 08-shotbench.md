@@ -8,13 +8,38 @@
 
 ## 2. 原始数据格式
 
-测试集为表格（HuggingFace 上 `Vchitect/ShotBench` 单独下载；仓库内仅含 `assets/` 演示图）。每条字段（`evaluate.py`）：
-- `question`：问题文本
-- `options`：JSON 选项字典 `{"A": "...", "B": "...", ...}`
-- `type`：模态列表（image / video）
-- `path`：媒体文件相对路径列表
-- `answer`：标准答案字母（A/B/C/D，或 Z=拒答）
-- `category`：摄影维度标签（用于分组统计）
+测试集是一个 **TSV 文件**（默认 `evaluation/data/ShotBench/test.tsv`，`evaluate.py:84` 用 `pd.read_csv(sep="\t")` 读取；HuggingFace `Vchitect/ShotBench` 单独下载，仓库内仅含 `assets/` 演示图）。**7 列**（HF 上的真实 schema）：
+
+| 列 | 类型 | 说明 |
+|----|------|------|
+| `index` | int64 | 题号 |
+| `type` | string | 模态列表的**字符串**，如 `["image"]` 或 `["video"]`（`safe_load` 解析） |
+| `path` | string | 媒体相对路径列表的**字符串**，如 `['image/YWE9AAUK.jpg']`、`['video/FopBvLLXKZ0.webm_31.mp4']` |
+| `question` | string | 问题文本 |
+| `options` | string | 选项**JSON 字典串** `{"A": "...", "B": "...", "C": "...", "D": "..."}` |
+| `answer` | string | 标准答案字母（A/B/C/D；Z=拒答） |
+| `category` | string | 摄影维度标签（**小写**，如 `shot size`、`camera movement`，用于分组统计） |
+
+> 注意：`type`/`path`/`options` 在 TSV 里都以**字符串**存储，代码用 `json.loads`→失败再 `ast.literal_eval`(`safe_load`) 解析。
+
+**真实样本（HF test split，逐字摘录）**
+
+图像题（`index=1`）：
+```
+index    1
+type     ["image"]
+path     ['image/YWE9AAUK.jpg']
+question What's the shot size of this shot?
+options  {"A": "Extreme Close Up", "B": "Medium Close Up", "C": "Close Up", "D": "Medium Wide"}
+answer   D
+category shot size
+```
+视频题（运镜维度）：
+```
+type     ["video"]
+path     ['video/FopBvLLXKZ0.webm_31.mp4']
+category camera movement
+```
 
 **8 个摄影维度**：Shot Size(景别)、Shot Framing(构图边界)、Camera Angle(机位角度)、Lens Size(焦段)、Lighting Type(布光类型)、Lighting Conditions(曝光条件)、Shot Composition(画面构成)、Camera Movement(运镜)。
 
