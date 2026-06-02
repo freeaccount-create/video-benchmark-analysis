@@ -1,0 +1,54 @@
+# DirectorBench Default Configuration
+
+# LLM Model Configuration
+llm:
+  model: "claude-sonnet-4-6"
+  max_tokens: 4096
+  temperature: 0.2
+  timeout: 120
+
+# Evaluation Dimension Weights (must sum to 1.0)
+weights:
+  shot_transition: 0.15
+  camera_control: 0.15
+  consistency: 0.20
+  physical_realism: 0.15
+  narrative: 0.15
+  storyboard: 0.10
+  audio: 0.10
+
+# Scoring Thresholds
+thresholds:
+  excellent: 9.0   # S grade
+  good: 8.0        # A grade
+  acceptable: 7.0  # B grade
+  marginal: 6.0    # C grade
+  poor: 0.0        # D grade
+
+# Frame Extraction Settings
+frame_extraction:
+  max_frames: 16           # Maximum frames to extract per video
+  interval_seconds: 5.0   # Extract a frame every N seconds
+  resolution:
+    width: 1280
+    height: 720
+
+# Output Format Settings
+output:
+  formats:
+    - console
+    - json
+    - markdown
+  save_visualizations: true
+  visualization_dpi: 150
+  report_dir: "./reports"
+
+# Parallelism Settings
+parallelism:
+  enabled: true
+  max_workers: 4
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

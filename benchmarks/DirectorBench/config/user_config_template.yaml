@@ -1,0 +1,46 @@
+# DirectorBench User Configuration Template
+# Copy this file and customize for your evaluation needs.
+# Any setting here will OVERRIDE the default_config.yaml values.
+
+# User Profile
+user:
+  name: "Your Name"
+  # Focus dimensions receive extra analytical depth in reports
+  evaluation_focus:
+    - narrative
+    - camera_control
+  # Scoring strictness: 1 (lenient) to 5 (very strict)
+  scoring_strictness: 3
+  # Preferred report output format: console, json, markdown
+  preferred_report_format: "console"
+
+# Override Evaluation Dimension Weights
+# If you specify ANY weights here, ALL weights must be provided and sum to 1.0.
+# Comment out this section to use default weights.
+weights:
+  shot_transition: 0.10
+  camera_control: 0.20   # Increased weight for camera-focused evaluation
+  consistency: 0.20
+  physical_realism: 0.10
+  narrative: 0.20         # Increased weight for story-focused evaluation
+  storyboard: 0.10
+  audio: 0.10
+
+# Override LLM settings
+# llm:
+#   model: "claude-sonnet-4-6"
+#   max_tokens: 4096
+#   temperature: 0.1     # Lower temperature for more deterministic scoring
+
+# Override frame extraction
+# frame_extraction:
+#   max_frames: 24
+#   interval_seconds: 3.0
+
+# Override output settings
+# output:
+#   formats:
+#     - json
+#     - markdown
+#   save_visualizations: true
+#   report_dir: "./my_reports"

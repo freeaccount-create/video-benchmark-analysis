@@ -1,0 +1,49 @@
+# DirectorBench — Dependencies
+# =============================
+
+# Core
+pydantic>=2.0
+openai>=1.0
+langgraph>=0.2.0
+langchain-core>=0.3.0
+
+# CLI
+click>=8.0
+
+# Preprocessing — required
+# opencv-python is provided by opencv-contrib-python below (superset)
+# opencv-python>=4.8           # transition boundary analysis (SSIM, histogram, optical flow)
+scenedetect[opencv]>=0.6       # shot boundary detection (algorithmic, no ML model)
+requests>=2.28                 # AudioShake API calls for audio separation
+
+# Preprocessing — optional (framework degrades gracefully without these)
+# openai-whisper               # local ASR fallback (only if Azure Whisper API unavailable)
+
+# Audio analysis (optional)
+# librosa                      # BGM feature extraction (tempo, energy)
+
+# Text-video similarity (cross-modal agent)
+transformers>=4.36             # CLIP ViT-B/32 for text-frame similarity
+torch>=2.0                     # PyTorch backend (CPU-only: install via `pip install torch --index-url https://download.pytorch.org/whl/cpu`)
+Pillow>=9.0                    # image loading for CLIP
+
+# Lip-sync evaluation (cross-modal agent)
+# Uses lightweight OpenCV optical-flow + audio-energy correlation (no extra deps).
+# syncnet-python is NOT required — previous SyncNet approach was too slow on CPU.
+
+# Embedding models (cross-modal agent)
+sentence-transformers>=2.2     # Sentence-BERT (all-MiniLM-L6-v2) for text similarity
+
+# ONNX acceleration (optional — faster CPU inference for Sentence-BERT)
+# optimum[onnxruntime]         # 2-3x speed-up on CPU; falls back to standard if absent
+
+# Image quality (stability agent)
+opencv-contrib-python>=4.8     # BRISQUE quality assessment (replaces opencv-python)
+
+# Visualization (optional)
+# matplotlib                   # radar/bar charts
+# seaborn                      # chart styling
+# rich                         # console formatting
+
+# Testing
+# pytest

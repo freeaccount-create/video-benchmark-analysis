@@ -1,0 +1,147 @@
+{
+"profile_id": 1,
+"name": "Story-First User",
+"personalization": {
+    "user_taste": {
+    "focus": "story_focused",
+    "emotion_depth": "high",
+    "wants_bgm": true,
+    "wants_complex_camera": false
+    },
+    "priority_weights": {
+    "text_story_arc": 0.55,
+    "visual_camera": 0.15,
+    "audio_emotion": 0.15,
+    "cross_modal_sync": 0.15
+    },
+    "hard_constraints": ["strong_three_act_arc", "causal_logic"],
+    "expertise_level": "intermediate",
+    "expression_style": "narrative"
+}
+},
+{
+"profile_id": 2,
+"name": "Visual-Heavy User",
+"personalization": {
+    "user_taste": {
+    "focus": "visual_heavy",
+    "camera_movement": "important",
+    "lighting": "very_important",
+    "wants_bgm": false
+    },
+    "priority_weights": {
+    "text_story_arc": 0.15,
+    "visual_camera": 0.50,
+    "audio_emotion": 0.10,
+    "cross_modal_sync": 0.25
+    },
+    "hard_constraints": ["complex_camera_movements", "beautiful_lighting"],
+    "expertise_level": "expert",
+    "expression_style": "technical"
+}
+},
+{
+"profile_id": 3,
+"name": "Audio & Emotion User",
+"personalization": {
+    "user_taste": {
+    "focus": "audio_emotion",
+    "bgm_important": true,
+    "tone_control": "very_important",
+    "wants_lip_sync": true
+    },
+    "priority_weights": {
+    "text_story_arc": 0.20,
+    "visual_camera": 0.15,
+    "audio_emotion": 0.45,
+    "cross_modal_sync": 0.20
+    },
+    "hard_constraints": ["emotional_bgm", "perfect_tone_match"],
+    "expertise_level": "intermediate",
+    "expression_style": "emotional"
+}
+},
+{
+"profile_id": 4,
+"name": "Sync Perfectionist",
+"personalization": {
+    "user_taste": {
+    "focus": "sync_important",
+    "lip_sync": "must",
+    "text_visual_alignment": "critical",
+    "wants_bgm": true
+    },
+    "priority_weights": {
+    "text_story_arc": 0.20,
+    "visual_camera": 0.20,
+    "audio_emotion": 0.20,
+    "cross_modal_sync": 0.40
+    },
+    "hard_constraints": ["perfect_lip_sync", "text_visual_match"],
+    "expertise_level": "expert",
+    "expression_style": "precise"
+}
+},
+{
+"profile_id": 5,
+"name": "Creative Dreamer",
+"personalization": {
+    "user_taste": {
+    "focus": "creative_fantasy",
+    "wants_dreamy_effects": true,
+    "wants_bgm": true,
+    "wants_unusual_camera": true
+    },
+    "priority_weights": {
+    "text_story_arc": 0.25,
+    "visual_camera": 0.30,
+    "audio_emotion": 0.25,
+    "cross_modal_sync": 0.20
+    },
+    "hard_constraints": ["fantasy_elements_allowed", "dreamy_transitions"],
+    "expertise_level": "novice",
+    "expression_style": "casual"
+}
+},
+{
+"profile_id": 6,
+"name": "Casual Vlogger",
+"personalization": {
+    "user_taste": {
+    "focus": "quick_and_natural",
+    "wants_bgm": true,
+    "wants_complex_camera": false,
+    "prefers_reference": true
+    },
+    "priority_weights": {
+    "text_story_arc": 0.30,
+    "visual_camera": 0.20,
+    "audio_emotion": 0.30,
+    "cross_modal_sync": 0.20
+    },
+    "hard_constraints": ["natural_feel"],
+    "expertise_level": "novice",
+    "expression_style": "casual"
+}
+},
+{
+"profile_id": 7,
+"name": "Detail Obsessive",
+"personalization": {
+    "user_taste": {
+    "focus": "comprehensive_control",
+    "wants_bgm": true,
+    "lighting": "very_important",
+    "wants_lip_sync": true
+    },
+    "priority_weights": {
+    "text_story_arc": 0.25,
+    "visual_camera": 0.30,
+    "audio_emotion": 0.25,
+    "cross_modal_sync": 0.20
+    },
+    "hard_constraints": ["frame_accurate_sync", "consistent_lighting", "causal_logic"],
+    "expertise_level": "expert",
+    "expression_style": "structured"
+}
+}
